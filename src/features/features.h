@@ -4,6 +4,91 @@
 
 namespace lo {
 
+namespace network_opt {
+struct NetworkOpt {
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+    void                  call(bool);
+    NetworkOpt();
+    ~NetworkOpt();
+    NetworkOpt(NetworkOpt&&) noexcept;
+    NetworkOpt& operator=(NetworkOpt&&) noexcept;
+};
+} // namespace network_opt
+
+namespace parked_chunks_opt {
+struct ParkedChunksOpt {
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+    void                  call(bool);
+    ParkedChunksOpt();
+    ~ParkedChunksOpt();
+    ParkedChunksOpt(ParkedChunksOpt&&) noexcept;
+    ParkedChunksOpt& operator=(ParkedChunksOpt&&) noexcept;
+};
+} // namespace parked_chunks_opt
+
+namespace worker_backlog_opt {
+struct WorkerBacklogOpt {
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+    void                  call(bool);
+    WorkerBacklogOpt();
+    ~WorkerBacklogOpt();
+    WorkerBacklogOpt(WorkerBacklogOpt&&) noexcept;
+    WorkerBacklogOpt& operator=(WorkerBacklogOpt&&) noexcept;
+};
+} // namespace worker_backlog_opt
+
+namespace player_snapshot_opt {
+struct PlayerSnapshotOpt {
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+    void                  call(bool);
+    PlayerSnapshotOpt();
+    ~PlayerSnapshotOpt();
+    PlayerSnapshotOpt(PlayerSnapshotOpt&&) noexcept;
+    PlayerSnapshotOpt& operator=(PlayerSnapshotOpt&&) noexcept;
+};
+} // namespace player_snapshot_opt
+
+namespace random_tick_prefetch_opt {
+struct RandomTickPrefetchOpt {
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+    void                  call(bool);
+    RandomTickPrefetchOpt();
+    ~RandomTickPrefetchOpt();
+    RandomTickPrefetchOpt(RandomTickPrefetchOpt&&) noexcept;
+    RandomTickPrefetchOpt& operator=(RandomTickPrefetchOpt&&) noexcept;
+};
+} // namespace random_tick_prefetch_opt
+
+namespace locator_opt {
+struct LocatorOpt {
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+    void                  call(bool);
+    LocatorOpt();
+    ~LocatorOpt();
+    LocatorOpt(LocatorOpt&&) noexcept;
+    LocatorOpt& operator=(LocatorOpt&&) noexcept;
+};
+} // namespace locator_opt
+
+namespace full_frame_timing {
+struct FullFrameTimingOpt {
+    struct Impl;
+    std::unique_ptr<Impl> impl;
+    void                  call(bool);
+    FullFrameTimingOpt();
+    ~FullFrameTimingOpt();
+    FullFrameTimingOpt(FullFrameTimingOpt&&) noexcept;
+    FullFrameTimingOpt& operator=(FullFrameTimingOpt&&) noexcept;
+};
+} // namespace full_frame_timing
+
+
 namespace vanilla_waypoints_opt {
 struct VanillaWaypointsOpt {
     struct Impl;

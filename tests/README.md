@@ -1,43 +1,30 @@
 # Optimization helper tests
 
-These tests exercise the production state and instruction-matching helpers in `src/features` through their public interfaces. They do not require a BDS executable, LeviLamina, or xmake packages. The five suites contain 54 cases.
+Ten C++23 suites exercise production helpers without a BDS executable. The network suite links the same libdeflate 1.25 and Snappy 1.2.2 packages as the mod. Checks remain active in release builds with `NDEBUG`.
 
-Build and run from the repository root with a C++23 compiler:
-
-```sh
-clang++ -std=c++23 -Wall -Wextra -Werror -pthread -Isrc tests/ChunkOptimizationStateTest.cpp -o ChunkOptimizationStateTest
-./ChunkOptimizationStateTest
-clang++ -std=c++23 -Wall -Wextra -Werror -Isrc tests/ChunkGenDispatcherSignatureTest.cpp -o ChunkGenDispatcherSignatureTest
-./ChunkGenDispatcherSignatureTest
-clang++ -std=c++23 -Wall -Wextra -Werror -Isrc tests/ChunkCacheSignaturesTest.cpp -o ChunkCacheSignaturesTest
-./ChunkCacheSignaturesTest
-clang++ -std=c++23 -Wall -Wextra -Werror -Isrc tests/VanillaWaypointsTest.cpp -o VanillaWaypointsTest
-./VanillaWaypointsTest
-clang++ -std=c++23 -Wall -Wextra -Werror -Isrc tests/EntityPacketRecipientsTest.cpp -o EntityPacketRecipientsTest
-./EntityPacketRecipientsTest
-```
-
-On Windows, use a Visual Studio developer terminal so clang can locate the Windows SDK, MSVC standard library, and linker:
+From a Windows developer terminal, configure and run the same targets as CI:
 
 ```powershell
-clang++ -std=c++23 -Wall -Wextra -Werror -Isrc tests/ChunkOptimizationStateTest.cpp -o ChunkOptimizationStateTest.exe
-./ChunkOptimizationStateTest.exe
-clang++ -std=c++23 -Wall -Wextra -Werror -Isrc tests/ChunkGenDispatcherSignatureTest.cpp -o ChunkGenDispatcherSignatureTest.exe
-./ChunkGenDispatcherSignatureTest.exe
-clang++ -std=c++23 -Wall -Wextra -Werror -Isrc tests/ChunkCacheSignaturesTest.cpp -o ChunkCacheSignaturesTest.exe
-./ChunkCacheSignaturesTest.exe
-clang++ -std=c++23 -Wall -Wextra -Werror -Isrc tests/VanillaWaypointsTest.cpp -o VanillaWaypointsTest.exe
-./VanillaWaypointsTest.exe
-clang++ -std=c++23 -Wall -Wextra -Werror -Isrc tests/EntityPacketRecipientsTest.cpp -o EntityPacketRecipientsTest.exe
-./EntityPacketRecipientsTest.exe
+xmake f -a x64 -m release -p windows --target_type=server --with_tests=y -y
+xmake -y
+xmake test -v
 ```
 
-The executable reports every case and returns a nonzero exit status on failure. Checks remain active when `NDEBUG` is defined.
+`with_tests` defaults to `false` for normal mod builds. Each `tests/*Test.cpp` becomes a `test_<basename>` binary, and a failing check returns a nonzero exit status. Test executables stay in the build directory and are not packaged with the mod.
 
-Coverage includes deferred update deduplication, nested calls, context restoration before callbacks, exception unwinding, thread isolation, exact refresh intervals, empty maps, out-of-range indices, map growth and shrinkage, stale key replacement, chunk payload ownership, and selected keys remaining valid after snapshot refresh and destruction. Key enumeration is observed through a map wrapper to check rebuild frequency without inspecting private cache state.
+| Suite | Production behavior covered |
+| --- | --- |
+| ChunkOptimizationStateTest | Scoped influence batching, nesting/exception recovery, thread isolation, autosave snapshot refresh, changing map sizes and owned selected keys. |
+| ChunkGenDispatcherSignatureTest | Exact instruction fixtures, wildcard displacement, truncation, ambiguity and bounded function scans. |
+| ChunkCacheSignaturesTest | Both capacity signatures, expected bytes, corruption, boundaries and ambiguous/already-patched sequences. |
+| VanillaWaypointsTest | Tracked/self/expired IDs, joins/leaves, signed boundaries and lookup short circuiting. |
+| EntityPacketRecipientsTest | Relevance, subclients, invalid IDs and fallback before any partial send. |
+| ChunkStreamingStateTest | Native queue hash validation, node parking/restoration, journal cursors and bounded retention, worker delay guards, deterministic random-tick seed predictions. |
+| NetworkCodecTest | Raw DEFLATE/Snappy fixtures and negotiation, payload limits, malformed/trailing data, framing, nested and concurrent scratch buffers, strong/weak peer control-block lifetimes. |
+| PlayerSnapshotTest | Snapshot identity/change detection, nested visits, exception unwinding and retirement. |
+| LocatorStateTest | Pair-slot growth/reuse, visibility/texture comparisons and native vector windows through suspend, exceptions and retirement. |
+| FullFrameTimingTest | Full-frame boundaries, catch-up ticks, idle exclusion, aborted/empty frames, initialized rolling averages and backward clock handling. |
 
-The dispatcher and cache signature suites test the production instruction matchers: displacement wildcard byte values, corruption of each fixed byte, every incorrect expected byte, truncated buffers and tails, function boundaries, capacity values, already-patched sequences, and rejection of multiple matches. These tests validate matching, not writes to live BDS code or Windows unwind metadata.
+The pure suites can also be built directly with `clang++ -std=c++23 -Wall -Wextra -Werror -Isrc`; add thread support as required by the platform and link libdeflate/Snappy for NetworkCodecTest. The Xmake commands above locate those dependencies automatically.
 
-The waypoint suite covers self exclusion, tracked and expired players, duplicate and boundary IDs, joins/leaves between calls, bulk membership and live-lookup short circuiting. The recipient suite covers invalid IDs, relevant players, missing user identifiers, subclient preservation, discarded partial selections and per-send isolation. These are production selection helpers; native group creation, locator toggles, dimension filtering, the SDK/native actor hash and actual packet delivery still require runtime checks.
-
-BDS hook resolution, ABI compatibility, chunk save/load behavior, redstone behavior, and gameplay regressions still require server/client integration tests on the supported game version.
+These tests do not load BDS or validate hook resolution, native ABI/layouts, DLL unload scheduling, packet delivery, chunk lifecycle, redstone, or measured TPS gains. Those require the runtime checks in [the handoff](../docs/NATIVE_PORT_HANDOFF.zh.md).

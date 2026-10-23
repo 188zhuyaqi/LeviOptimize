@@ -3,6 +3,9 @@
 
 #include "LeviOptimize.h"
 #include "Config.h"
+#include "features/network/NetworkRuntime.h"
+#include "features/parked_chunks/ParkedChunksRuntime.h"
+#include "features/timing/FullFrameTiming.h"
 
 #include "ll/api/Config.h"
 #include "ll/api/mod/RegisterHelper.h"
@@ -14,7 +17,8 @@
 namespace lo {
 namespace command {
 extern void registerTimingCommand();
-}
+extern void registerPerformanceCommand();
+} // namespace command
 
 LeviOptimize& LeviOptimize::getInstance() {
     static LeviOptimize instance;
@@ -29,10 +33,32 @@ bool LeviOptimize::load() {
             command::registerTimingCommand();
         });
     }
+    if (getConfig().commands.performanceCommand) {
+        ll::event::EventBus::getInstance().emplaceListener<ll::event::command::ServerCommandRegisterEvent>(
+            [](ll::event::command::ServerCommandRegisterEvent&) { command::registerPerformanceCommand(); }
+        );
+    }
     return res;
 }
 
-bool LeviOptimize::unload() { return true; }
+bool LeviOptimize::unload() {
+    // Each check may retire native resources; evaluate all even if one fails.
+    auto const networkReady = network_opt::canUnload();
+    auto const parkedReady  = parked_chunks_opt::canUnload();
+    auto const timingReady  = full_frame_timing::canUnload();
+    if (!networkReady || !parkedReady || !timingReady) {
+        getLogger().warn(
+            "Unload deferred: {} network peer control blocks remain; chunk retirement ready: {}; "
+            "frame timing retirement ready: {}. "
+            "Allow outstanding native callbacks/tasks and connections to drain, then retry.",
+            network_opt::liveWrapperCount(),
+            parkedReady,
+            timingReady
+        );
+        return false;
+    }
+    return true;
+}
 
 bool LeviOptimize::enable() { // NOLINT
     if (!mConfig && !loadConfig()) {

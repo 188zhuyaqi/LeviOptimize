@@ -1,5 +1,7 @@
 # Endstone 性能移植第二轮审计
 
+> 本文保留第二轮审计当时的拆分与延期依据。用户随后要求直接实现八项原生功能，已追加源码；最新状态及NAPI/ABI适配点以[逐项对照](PORTING_CHECKLIST.zh.md)和[开发者交接](NATIVE_PORT_HANDOFF.zh.md)为准。PR #31 已关闭，本轮不再发起PR。
+
 审计日期：2026-10-23。本文补充用户提供的 `BDS_PERFORMANCE_PORTING.md` 与 [移植审计](ENDSTONE_PORTING.md)，重点检查原索引遗漏及“同一提交被整体延期，实际可以拆出安全部分”的情况。逐编号状态和未移植原因见[原文档对照清单](PORTING_CHECKLIST.zh.md)。源码审查与编译结果不代表已经完成运行基准。
 
 ## 结论与实际检查范围

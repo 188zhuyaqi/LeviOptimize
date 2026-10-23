@@ -1,6 +1,6 @@
 # Endstone performance port audit
 
-Audited on 2026-10-22 against all fetched Endstone branches and 5,630 reachable commits. The supplied performance index was used as a candidate list, then checked against current source and history.
+Audited on 2026-10-22/23 against all fetched Endstone branches and 5,630 reachable commits. The supplied performance index was used as a candidate list, then checked against current source and history. The additional native implementations requested on 2026-10-23 are included below. PR #31 is closed at the user's request; this delivery does not create or reopen a PR.
 
 - Endstone stable `main`: [`bb0475b64744106b328238b3f51d77576ddc6569`](https://github.com/EndstoneMC/endstone/commit/bb0475b64744106b328238b3f51d77576ddc6569), still the v0.11.14 / BDS 1.26.52.3 baseline. There are no later stable-main runtime optimizations.
 - Target base: LeviOptimize [`e22a844`](https://github.com/LiteLDev/LeviOptimize/commit/e22a84421563cdb3108cd4e92ada0481f4e2e12f), Windows server/client, LeviLamina `26.51.*`.
@@ -8,7 +8,7 @@ Audited on 2026-10-22 against all fetched Endstone branches and 5,630 reachable 
 
 ## Included ports
 
-All seven new options default to `false`. Existing `fixChunkLeak` keeps its prior default. Change one option at a time in `features` and restart when comparing behavior and performance.
+All fourteen added options default to `false`; configuration version is 20. Existing `fixChunkLeak` keeps its prior default. Change one option at a time in `features` and restart when comparing behavior and performance. Source implementation does not establish native symbol availability or runtime ABI correctness; concentrated repair points are listed in the [developer handoff](NATIVE_PORT_HANDOFF.zh.md).
 
 | Configuration | Upstream evidence | Adaptation |
 | --- | --- | --- |
@@ -20,6 +20,13 @@ All seven new options default to `false`. Existing `fixChunkLeak` keeps its prio
 | `optVanillaWaypoints` | [`874c1fa31`](https://github.com/EndstoneMC/endstone/commit/874c1fa310545487cc86f7f7f5c0e207514bdb3f) | Separate the manager membership check from the broader locator caches. Sort local tracked IDs once, then check player-list IDs. Skip only when no missing live non-self player needs a waypoint. Group creation and locator toggle changes retain the native update. No persistent IDs, actor pointers or slot caches. |
 | `optEntityPacketRecipients` | [`fa7b3d4eb`](https://github.com/EndstoneMC/endstone/commit/fa7b3d4eb488c5180bf722d7777b12536e35cc50) | Separate entity broadcasting from the active-user snapshot. On the server, resolve the actor ID once, retain native player iteration, use nearby-actor membership, and batch recipients through the native packet sender. Preserve excluded players, self relevance and subclient identifiers; invalid required IDs trigger native fallback before any send. The client retains native behavior. |
 | `fixChunkLeak` enhancement | [`d520c1938`](https://github.com/EndstoneMC/endstone/commit/d520c1938) | The target already removed player map trackers. Copy matching entity keys first and call BDS's `_removeTrackedMapEntity()` so decorations and dirty state are handled too. |
+| `optNetwork` (index 2.3/2.4) | `4624070dd`, `e41e349ad`, `42b472028`, `fe86ade3f` | libdeflate/Snappy/None negotiation, native batch-stream reuse, peer splice and trace removal for new connections, checked framing and reentrant scratch. Preserve native async task ownership; restore owned chains on disable and reject unload while custom control blocks remain. Runtime symbols and peer declarations are isolated in adapters. |
+| `optParkedChunks` (2.6) | `099d6f028` | Extract unavailable queue nodes after native hash checks, track bounded chunk-event journals, restore on view/source/lifetime changes, and retain state safely across reentrant native callbacks. Native unordered/key ABI still requires target validation. |
+| `optWorkerBacklog` (2.7) | `cd97eea16` | Resolve the ASYNC data symbol and lower the expected 0.05F delay to zero. The unnamed SDK float at offset 252 is an explicit Endstone-based ABI assumption; conditional restore and value checks do not prove its native meaning. |
+| `optPlayerSnapshot` (2.8) | `fa7b3d4eb` | Per-Level active-user snapshots, dimension iteration and active counts with weak registry/ActorOwner validation, owner-thread constraints, retirement and nested fallback. Independent from the broadcast toggle above. |
+| `optRandomTickPrefetch` (2.11) | `6e7417c00`, `fdea21001` | Predict samples from a copy of vanilla's live seed and prefetch storage without mutating RNG. Missing seed/tick symbols skip installation; a verified resolver override is provided. No seed-unlock patch is restored. |
+| `optLocator` (2.12) | `874c1fa31` | Pair/slot caches, check/hide RTTI classification, native map RAII windows, slot retirement, exception invalidation, and waypoint icon/visibility updates. WorldPosition and flat-map layouts remain explicit adapter assumptions. |
+| `optFullFrameTiming` (2.18) | `03be20b63`, `6790acf3c` | Full server-frame boundaries, catch-up tick splitting and 20 initialized rolling samples, exposed through host-only `loprofile`. Native listeners retire at safe task boundaries; pending registrations/tasks pin DLL unload. Endstone status/devtools UI is not ported. |
 
 The input index's circuit description conflated pending updates with association items. The actual upstream code cleans items in affected **power association lists**, not pending updates themselves. This port also differs from LeviOptimize's removed historical `fixPowerAssocMap`: it retains native `update()` and does not replace `removeStaleRelationships()`.
 
@@ -27,9 +34,9 @@ Snapshot sampling is approximate while the chunk map changes. The bounded RNG co
 
 Each cache-capacity patch is checked separately. A changed or unavailable function can leave one or both limits unchanged with a warning. Disabling restores installed instruction bytes; it does not forcibly clear native caches or promise immediate RSS reduction. No target offsets are guessed, and a matching source pattern alone is not a substitute for the runtime checks below.
 
-The entity recipient shortcut implements vanilla relevance using named server fields. It checks the SDK's actor-ID hash against the known low-32-bit algorithm before installing its hook; the known low-24-bit SDK mismatch leaves native routing intact. This check is not proof of compatibility with a different game binary. A mod overriding `Dimension::isActorRelevantForPlayer` may implement additional filters; leave this option disabled until their recipient sets are compared. The locator shortcut preserves native manager updates for missing players and setting changes; per-waypoint position, visibility and packet generation remain native.
+The entity recipient shortcut implements vanilla relevance using named server fields. It checks the SDK's actor-ID hash against the known low-32-bit algorithm before installing its hook; the known low-24-bit SDK mismatch leaves native routing intact. This check is not proof of compatibility with a different game binary. A mod overriding `Dimension::isActorRelevantForPlayer` may implement additional filters; leave this option disabled until their recipient sets are compared. The manager-only locator shortcut preserves native updates for missing players and setting changes; the separate `optLocator` adds the pair and waypoint implementation.
 
-The [second history audit](ENDSTONE_SECOND_AUDIT.md) records why these two sub-portions were separated from the deferred groups, newly identified network/configuration fixes, and target fixes that must not be duplicated.
+The [second history audit](ENDSTONE_SECOND_AUDIT.md) preserves the initial decision to separate these two portions, newly identified network/configuration fixes, and target fixes that must not be duplicated. The current [numbered checklist](PORTING_CHECKLIST.zh.md) supersedes its earlier deferred statuses.
 
 ## Later branch history
 
@@ -49,16 +56,10 @@ The stable release is not the newest branch state. These later commits were chec
 | Candidate from the supplied index | Disposition / required work |
 | --- | --- |
 | Packet event bypass and peer/player lookup (`9cc00a03d`, `6369d0477`) | Endstone framework overhead. LeviLamina event emitters already own their hooks and remove them with the last listener; copying an Endstone plugin manager is inappropriate here. |
-| libdeflate, peer splice, trace removal, thread scratch (`4624070dd`, `e41e349ad`, `42b472028`, `fe86ade3f`) | Deferred as a complete network-layer port. LeviLamina marks relevant `CompressedNetworkPeer` methods MCNAPI, and libdeflate is not a target dependency. Must verify symbols, Snappy/hybrid negotiation, raw DEFLATE format, size limits, malformed-data handling, peer lifetimes, reentrancy, scratch consumption, other mods' hooks, and shutdown before replacing the chain. |
-| Parked publisher chunks (`099d6f028`) | Separate from the included influence batching. Requires identical hash/node ABI, extraction and reinsertion, chunk/view lifecycle subscriptions, teleport/source-change recovery, and a tested fallback. |
-| Worker backlog (`cd97eea16`) | Deferred: target `WorkerPool` still exposes untyped `mUnk*` fields and `ASYNC()` is MCNAPI. Do not guess the backlog member offset from another BDS version. |
-| Dimension active-user snapshot (`fa7b3d4eb`) | The independent entity broadcast portion is now included. The snapshot remains deferred: named weak-reference APIs exist, but registry destruction, removed players, dimension filters and nested callbacks still need lifetime testing. |
-| Random-tick prefetch (`6e7417c00`, final tidy `fdea21001`) | The named subchunk storage APIs are available. The remaining blocker is the unexposed `LevelChunk::tickImpl::seed` static used to predict vanilla samples without consuming RNG. An address from Endstone's different BDS version is not sufficient evidence. |
-| Locator/waypoint caches (`874c1fa31`) | The independent manager membership check is now included. Retained pair/slot caches still need actor-ID reuse and player-removal testing. `ServerWaypoint::update` also requires the target's `WorldPosition` layout, whose members remain untyped in 26.51.7. |
 | Plugin map rendering / actor wrappers (`b7f72336a`, `7fddd32e5`) | Endstone wrapper and renderer paths are absent. |
 | Python / scheduler (`79e7fcc51`, `01d79b7d7`) | No corresponding runtime in LeviOptimize. |
 | Linux mimalloc bootstrap (`9de00db9b`) | Target project builds Windows server/client and has no Python launcher. LeviLamina already declares its own allocator dependencies. |
-| MSPT/TPS accounting, status and devtools (`03be20b63`, `6790acf3c`, `8e5eb0b7f`, `6adfe42ab`) | Endstone-specific facilities. Do not claim the target's `timing` values use Endstone's full-frame measurement. Use an external profiler for comparable full-frame MSPT. |
+| Status/devtools UI (`8e5eb0b7f`, `6adfe42ab`) | The native full-frame sampler is now implemented separately from ECS `timing`. Endstone's Python status/devtools UI, hidden window/render thread and platform PSS presentation have no corresponding target subsystem and are not copied. |
 | Liquid/leaves event gates (`3946f6420`, `4759ba169`) | Endstone event implementations are absent from this mod. |
 | Historical async networking / older libdeflate (`3ca0865dd` family, `65ac15afe`) | Distinct network architectures, not patches to mix into the current peer chain. `feat/async-batch` is no longer an advertised remote branch. |
 | Blend-answer memoization / random-seed unlock (`a46a12cdb`, `036a4adc8`, `1c496aee4`) | Superseded by cache-capacity changes or removed by `f1f0b65f1`; not restored. |
@@ -69,7 +70,7 @@ The stable release is not the newest branch state. These later commits were chec
 
 The project and standalone tests use C++23. Snapshot sampling returns an owned `std::optional<ChunkPos>`, so a selected key survives snapshot replacement or destruction without borrowing a vector element. C++23 range operations express policy membership and materialize only map keys; refreshes still build a replacement before swapping it into the cache. Function resolution and byte-patch validation use `std::expected` to report concrete failures while retaining the bounded scan, double validation and conditional restoration.
 
-The standalone [regression tests](../tests/README.md) cover real production helper behavior without a BDS executable: batching, recursion, exception recovery, thread isolation, snapshot refresh frequency, changing map sizes, stale keys, absence of chunk ownership, selected-key lifetime, bounded unique instruction matching, waypoint membership and atomic packet-recipient fallback. The five suites cover 54 cases. CI runs them in addition to the existing Windows server/client build matrix.
+The ten standalone [regression suites](../tests/README.md) exercise production helpers without a BDS executable: batching, recursion, exception recovery, thread isolation, snapshots, bounded signatures, queue state, compression negotiation and malformed input, peer ownership, locator windows and full-frame accounting. CI runs them in addition to the Windows server/client build matrix.
 
 Compilation and these tests do not establish runtime TPS gains. No BDS runtime workload or bot benchmark was available during this port. Before enabling by default or merging for release, run:
 

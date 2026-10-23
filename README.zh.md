@@ -44,6 +44,7 @@ lip install github.com/LiteLDev/LeviOptimize
 ## 命令
 
 - **`timing`**：显示服务器性能统计信息，重点关注TPS和详细的ECS性能指标。
+- **`loprofile`**：开启 `features.optFullFrameTiming` 后显示全帧 MSPT/TPS，平均值取最近最多 20 个已采样 tick。通过 `commands.performanceCommand` 控制命令注册。
 
 > **注意**：如果您在使用`timing`命令后应用程序立即崩溃，并且异常原因是空指针，请检查您的msvcp140.dll版本。考虑更新或修复Visual
 > C++
@@ -70,7 +71,15 @@ lip install github.com/LiteLDev/LeviOptimize
 - **`optVanillaWaypoints`**：定位栏路标更新时先汇总已跟踪的实体 ID，避免对每个玩家反复扫描整个路标组。定位栏开关变化或存在尚未跟踪的在线玩家时，仍执行原生更新。
 - **`optEntityPacketRecipients`**：仅服务端生效，实体广播时只读取一次实体 ID，通过玩家附近实体表收集接收者后批量发送，保留分屏客户端标识。遇到必要的实体 ID 无效时，在发送前回退原生路径；修改实体相关性判断的模组需要兼容性测试。
 
-以上七个新增 `opt*` 选项默认均为 `false`。在配置的 `features` 中逐项设为 `true` 并重启后测试。上游提交、兼容性限制及待完成的实服验证见[移植审计](docs/ENDSTONE_PORTING.md)。
+- **`optNetwork`**：为新连接安装 libdeflate/Snappy 压缩 peer、移除该链上的 PacketTrace，复用原生批处理流和支持重入的线程缓冲。已有连接需重新连接。
+- **`optParkedChunks`**：暂存尚不可发送的 publisher 队列节点，根据区块事件重新检查；恢复和禁用时归还原生节点。
+- **`optWorkerBacklog`**：核对目标字段和预期值后，将异步 worker 的积压等待从 0.05 秒设为零。
+- **`optPlayerSnapshot`**：复用经过有效性检查的活动玩家快照，加速维度遍历和人数统计；不兼容的嵌套遍历回退原生。
+- **`optRandomTickPrefetch`**：复制原生随机刻 seed 来预测采样位置并预取存储，不推进游戏 RNG。
+- **`optLocator`**：实现定位栏成对 slot 缓存和路标图标／可见性更新，可与独立的 manager 优化 `optVanillaWaypoints` 同时使用。
+- **`optFullFrameTiming`**：采集服务器整帧工作时间，覆盖 Level tick 前的工作并分段统计补跑 tick，排除帧间空闲，供 `loprofile` 展示。
+
+本次移植新增的十四个选项默认均为 `false`，配置版本为 20。在 `features` 中逐项开启并重启后测试。符号／布局适配点和待完成的实服验证见[开发者交接](docs/NATIVE_PORT_HANDOFF.zh.md)与[移植审计](docs/ENDSTONE_PORTING.md)。缺少必要符号时跳过对应 hook 组。网络和计时功能禁用后若仍有原生任务或引用未释放，模组会拒绝卸载 DLL，待其释放后再重试。
 
 
 ## 贡献

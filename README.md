@@ -44,6 +44,7 @@ Upon its first run, LeviOptimize will generate configuration files in `mod/LeviO
 ## Commands
 
 - **`timing`**: Displays server performance statistics, focusing on TPS and detailed ECS performance metrics.
+- **`loprofile`**: Displays full-frame MSPT/TPS and the last 20 collected tick samples when `features.optFullFrameTiming` is enabled. Registration is controlled by `commands.performanceCommand`.
 
 > **Note**: If your application crashes immediately upon using the `timing` command, with the exception pointing to a null pointer, please check the version of your msvcp140.dll. Consider updating or repairing the Visual C++ Redistributable, or simply copy a working msvcp140.dll file from a functioning device to your BDS root directory.
 
@@ -64,7 +65,15 @@ Upon its first run, LeviOptimize will generate configuration files in `mod/LeviO
 - **`optVanillaWaypoints`**: Checks tracked actor IDs once per locator waypoint update to avoid repeated group scans. Changes to the locator setting and missing live players still use the native update.
 - **`optEntityPacketRecipients`**: Server-only entity broadcast path that reads the actor ID once and batches recipients using each player's nearby actors. It preserves subclient identifiers and falls back before sending if required actor IDs are invalid. Mods overriding entity relevance need compatibility testing.
 
-The seven new `opt*` options above default to `false`. Set individual keys in `features` to `true` and restart to test them. See [the port audit and validation matrix](docs/ENDSTONE_PORTING.md) for upstream commits, compatibility limits, and remaining runtime checks.
+- **`optNetwork`**: Installs libdeflate/Snappy compression peers for new connections, removes the trace peer from that chain, and reuses the native batch stream and reentrant per-thread buffers. Existing connections need to reconnect.
+- **`optParkedChunks`**: Parks unavailable publisher queue nodes and rechecks them after chunk events, preserving native queue nodes on recovery and disable.
+- **`optWorkerBacklog`**: Sets the async worker backlog delay from 0.05 seconds to zero after checking the target field and expected value.
+- **`optPlayerSnapshot`**: Reuses validated active-player snapshots for dimension iteration and active-player counts, with native fallback during incompatible nested traversal.
+- **`optRandomTickPrefetch`**: Predicts vanilla random-tick samples from a copy of its live seed and prefetches storage without advancing the game RNG.
+- **`optLocator`**: Adds locator pair/slot caches and the waypoint icon/visibility update path. It can be used with the separate manager option `optVanillaWaypoints`.
+- **`optFullFrameTiming`**: Measures server-frame work, including pre-level work and catch-up ticks, for `loprofile`. Inter-frame idle time is excluded.
+
+All fourteen options added by this port default to `false`; configuration version is 20. Enable individual keys in `features` and restart to test them. Native symbol/layout assumptions and remaining runtime checks are listed in [the developer handoff](docs/NATIVE_PORT_HANDOFF.zh.md) and [the port audit](docs/ENDSTONE_PORTING.md). Missing required symbols skip the affected hook group. Disabling networking/timing may leave native tasks or references pending; DLL unload is refused until they drain.
 
 ## Contributing
 

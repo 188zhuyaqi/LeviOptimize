@@ -8,9 +8,16 @@ option("target_type")
     set_values("server", "client")
 option_end()
 
+option("with_tests")
+    set_default(false)
+    set_showmenu(true)
+option_end()
+
 add_requires("levilamina 26.51.*", {configs = {target_type = get_config("target_type")}})
 
 add_requires("levibuildscript")
+add_requires("libdeflate v1.25", {configs = {shared = false}})
+add_requires("snappy 1.2.2", {configs = {shared = false}})
 
 if not has_config("vs_runtime") then
     set_runtimes("MD")
@@ -38,7 +45,7 @@ target("LeviOptimize")
         )
         set_toolchains("clang-cl")
     end
-    add_packages("levilamina")
+    add_packages("levilamina", "libdeflate", "snappy")
     set_kind("shared")
     set_languages("c++23")
     set_symbols("debug")
@@ -59,3 +66,23 @@ target("LeviOptimize")
     --  add_includedirs("src-client")
     --  add_files("src-client/**.cpp")
     end
+target_end()
+
+if has_config("with_tests") then
+    for _, testfile in ipairs(os.files("tests/*Test.cpp")) do
+        target("test_" .. path.basename(testfile))
+            set_kind("binary")
+            set_languages("c++23")
+            set_exceptions("cxx")
+            if is_plat("windows") then
+                set_toolchains("clang-cl")
+                add_cxflags("/utf-8")
+                add_defines("NOMINMAX")
+            end
+            add_includedirs("src")
+            add_files(testfile)
+            add_packages("libdeflate", "snappy")
+            add_tests("default")
+        target_end()
+    end
+end

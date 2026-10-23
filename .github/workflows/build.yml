@@ -31,37 +31,18 @@ jobs:
         with:
           llvm-version: 22
 
-      - name: Test chunk optimization helpers
-        if: matrix.target_type == 'server'
-        run: |
-          clang++ -std=c++23 -O2 -DNDEBUG -Wall -Wextra -Werror -Isrc tests/ChunkOptimizationStateTest.cpp -o ChunkOptimizationStateTest.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./ChunkOptimizationStateTest.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          clang++ -std=c++23 -O2 -DNDEBUG -Wall -Wextra -Werror -Isrc tests/ChunkGenDispatcherSignatureTest.cpp -o ChunkGenDispatcherSignatureTest.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./ChunkGenDispatcherSignatureTest.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          clang++ -std=c++23 -O2 -DNDEBUG -Wall -Wextra -Werror -Isrc tests/ChunkCacheSignaturesTest.cpp -o ChunkCacheSignaturesTest.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./ChunkCacheSignaturesTest.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          clang++ -std=c++23 -O2 -DNDEBUG -Wall -Wextra -Werror -Isrc tests/VanillaWaypointsTest.cpp -o VanillaWaypointsTest.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./VanillaWaypointsTest.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          clang++ -std=c++23 -O2 -DNDEBUG -Wall -Wextra -Werror -Isrc tests/EntityPacketRecipientsTest.cpp -o EntityPacketRecipientsTest.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./EntityPacketRecipientsTest.exe
-
       - run: |
           xmake repo -u
 
       - run: |
-          xmake f -a x64 -m release -p windows -v --target_type=${{ matrix.target_type }} -y
+          xmake f -a x64 -m release -p windows -v --target_type=${{ matrix.target_type }} --with_tests=${{ matrix.target_type == 'server' && 'y' || 'n' }} -y
 
       - run: |
           xmake -v -y
+
+      - name: Test production optimization helpers
+        if: matrix.target_type == 'server'
+        run: xmake test -v
 
       - uses: actions/upload-artifact@v7
         with:
