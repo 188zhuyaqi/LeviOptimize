@@ -7,30 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Implement the additional native ports for compression/batch reuse, parked publisher chunks, worker backlog, player snapshots, random-tick prefetch, and locator pair/waypoint caches.
-- Add optional full-frame MSPT/TPS sampling and the host-only `loprofile` command, separate from ECS timing.
-- Add static libdeflate 1.25 and Snappy 1.2.2 dependencies, license notices, native symbol adapters, and five more helper test suites.
-- Optional Endstone ports for player networking influence batching, autosave chunk sampling, and stale redstone association cleanup.
-- An experimental, signature-checked Windows option to raise chunk generation task limits from Endstone's newer dispatcher branch.
-- Signature-checked chunk blending/existence cache capacity increases, with explicit opt-in because they retain more memory.
-- Optional locator waypoint membership checks and server entity packet recipient batching, separated from upstream's broader caches during a second history audit.
-- Upstream history audit, standalone state regression tests, and Endstone attribution/license files in packaged output.
-
-### Fixed
-
-- Use native map tracker removal on disconnect to clean decorations and dirty state as well as chunk view references.
-- Make feature listeners movable for the currently resolved LeviLamina 26.51 dependency.
-
-### Changed
-
-- Bump configuration version to 20; all newly ported features remain disabled by default.
-- Refuse DLL unload while custom network control blocks, frame listeners, native queued callbacks, or active timing hooks still require module code.
-- Build the project and helper tests as C++23 without overriding MS STL internal feature macros.
-- Return owned snapshot keys and use C++23 range operations for key materialization and policy membership.
-- Report concrete function resolution and byte-patch validation failures with `std::expected`.
-
 ## [0.17.0] - 2026-09-18
 
 ### Changed

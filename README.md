@@ -5,6 +5,8 @@
 
 A performance optimization mod for Minecraft Bedrock Dedicated Server (BDS), "LeviOptimize" is designed to enhance server performance by addressing issues related to low ticks per second (TPS). Operating within the LeviLamina framework, it modifies BDS code to achieve notable performance improvements.
 
+> **Migration status (2026-10-23)**: the mod is being restructured for a shared server/client codebase. The complete 0.17 server implementation is archived under [`old/`](old/README.md) and is **not built**; the current `src/` tree contains only the new architecture skeleton. See [the architecture design](docs/ARCHITECTURE.md) for the target model, feature lifecycle, and migration plan. The feature list below documents the archived implementation, not the current binary.
+
 ## Table of Contents
 
 - [LeviOptimize](#levioptimize)
@@ -35,13 +37,41 @@ lip install github.com/LiteLDev/LeviOptimize
 
 1. Download the latest release from the [Releases page](https://github.com/LiteLDev/LeviOptimize/releases).
 2. Unpack the `LeviOptimize-windows-x64.zip` file.
-3. Copy the `LeviOptimize` folder to the `mods` folder of your BDS installation directory.
+3. Copy the `LeviOptimize` folder to `plugins/` for a dedicated server or `mods/` for the client.
 
 ## Usage
 
-Upon its first run, LeviOptimize will generate configuration files in `mod/LeviOptimize/config/`. These files are customizable to tailor the mod's behavior to your needs.
+Upon its first run, LeviOptimize generates its configuration in `plugins/LeviOptimize/config/` on a dedicated server and `mods/LeviOptimize/config/` on a client. Each installation owns its own `config.json`; the two files are not interchangeable.
+
+The v22 format follows iEconomicSystem: a top-level `$schema` and `version`, plus a flat `features` array. Each entry selects a feature with its stable `type`; missing fields are filled from defaults and unknown feature types are preserved:
+
+```json
+{
+    "$schema": "config.schema.json",
+    "version": 22,
+    "features": [
+        {
+            "type": "tick_probe",
+            "enable": false,
+            "log_every_ticks": 200,
+            "fail_on_start": false
+        }
+    ]
+}
+```
+
+The schema is shipped as `config/config.schema.json` next to the config file. Version 21 files using the old `"features": { "tickProbe": {...} }` object layout are migrated automatically on load.
 
 ## Commands
+
+Current skeleton (server commands):
+
+- **`loreload`** (host permission): re-reads `config.json`, pushes the new values into the running feature instances, and reconciles them without restarting the process. It prints the per-feature outcome (started / stopped / failed / blocked). Features that must be installed before the client loop, the client world or the server world remain `RestartRequired` if they were first enabled after their deadline.
+- **`lostatus`** (host permission): prints the runtime context (`side`, `world`, `clientLoop`, `clientWorld`, `serverWorld`) and every feature's id, start policy, state, wait reason and last lifecycle error, so a failed or waiting feature can be identified without reading the log.
+
+`LeviOptimize::reloadConfig()` returns `ll::Expected<ReconcileReport>`; `FeatureManager::status(id)` and `statuses()` expose the same state to client UI or tests.
+
+The commands below belong to the archived implementation in [`old/`](old/README.md):
 
 - **`timing`**: Displays server performance statistics, focusing on TPS and detailed ECS performance metrics.
 - **`loprofile`**: Displays full-frame MSPT/TPS and the last 20 collected tick samples when `features.optFullFrameTiming` is enabled. Registration is controlled by `commands.performanceCommand`.
@@ -49,6 +79,8 @@ Upon its first run, LeviOptimize will generate configuration files in `mod/LeviO
 > **Note**: If your application crashes immediately upon using the `timing` command, with the exception pointing to a null pointer, please check the version of your msvcp140.dll. Consider updating or repairing the Visual C++ Redistributable, or simply copy a working msvcp140.dll file from a functioning device to your BDS root directory.
 
 ## Features
+
+> Archived 0.17 behaviour, kept for reference only. None of these features are compiled into the current skeleton; migration status is tracked in [the architecture design](docs/ARCHITECTURE.md).
 
 - **`optMovingBlock`**: Improves FPS and TPS by optimizing block entities' processing during piston movements.
 - **`fixChunkLeak`**: Removes disconnected players' map trackers through BDS's native cleanup, including decorations and dirty state, so their chunk views can unload.
@@ -73,7 +105,7 @@ Upon its first run, LeviOptimize will generate configuration files in `mod/LeviO
 - **`optLocator`**: Adds locator pair/slot caches and the waypoint icon/visibility update path. It can be used with the separate manager option `optVanillaWaypoints`.
 - **`optFullFrameTiming`**: Measures server-frame work, including pre-level work and catch-up ticks, for `loprofile`. Inter-frame idle time is excluded.
 
-All fourteen options added by this port default to `false`; configuration version is 20. Enable individual keys in `features` and restart to test them. Native symbol/layout assumptions and remaining runtime checks are listed in [the developer handoff](docs/NATIVE_PORT_HANDOFF.zh.md) and [the port audit](docs/ENDSTONE_PORTING.md). Missing required symbols skip the affected hook group. Disabling networking/timing may leave native tasks or references pending; DLL unload is refused until they drain.
+All fourteen options added by this port default to `false`; the archived configuration version is 20. Enable individual keys in `features` and restart to test them. Native symbol/layout assumptions and remaining runtime checks are listed in [the developer handoff](docs/NATIVE_PORT_HANDOFF.zh.md) and [the port audit](docs/ENDSTONE_PORTING.md). Missing required symbols skip the affected hook group. Disabling networking/timing may leave native tasks or references pending; DLL unload is refused until they drain.
 
 ## Contributing
 

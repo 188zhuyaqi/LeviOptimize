@@ -1,6 +1,7 @@
 add_rules("mode.debug", "mode.release")
 
 add_repositories("levimc-repo https://github.com/LiteLDev/xmake-repo.git")
+add_repositories("miracleforest-repo https://github.com/MiracleForest/xmake-repo.git")
 
 option("target_type")
     set_default("server")
@@ -8,16 +9,9 @@ option("target_type")
     set_values("server", "client")
 option_end()
 
-option("with_tests")
-    set_default(false)
-    set_showmenu(true)
-option_end()
-
-add_requires("levilamina 26.51.*", {configs = {target_type = get_config("target_type")}})
-
+add_requires("levilamina 26.51.*", { configs = { target_type = get_config("target_type") } } )
+add_requires("ipatch 1.0.0",  { configs = { shared = false } } )
 add_requires("levibuildscript")
-add_requires("libdeflate v1.25", {configs = {shared = false}})
-add_requires("snappy 1.2.2", {configs = {shared = false}})
 
 if not has_config("vs_runtime") then
     set_runtimes("MD")
@@ -26,63 +20,57 @@ end
 target("LeviOptimize")
     add_rules("@levibuildscript/linkrule")
     add_rules("@levibuildscript/modpacker")
-    if is_plat("windows") then
-        add_defines("NOMINMAX", "UNICODE")
-        set_exceptions("none") -- To avoid conflicts with /EHa.
-        add_cxflags( "/EHa", "/utf-8", "/W4", "/w44265", "/w44289", "/w44296", "/w45263", "/w44738", "/w45204")
-        add_cxflags(
-            "/EHs",
-            "-Wno-microsoft-cast",
-            "-Wno-invalid-offsetof",
-            "-Wno-c++2b-extensions",
-            "-Wno-microsoft-include",
-            "-Wno-overloaded-virtual",
-            "-Wno-ignored-qualifiers",
-            "-Wno-missing-field-initializers",
-            "-Wno-potentially-evaluated-expression",
-            "-Wno-pragma-system-header-outside-header",
-            {tools = {"clang_cl"}}
-        )
-        set_toolchains("clang-cl")
-    end
-    add_packages("levilamina", "libdeflate", "snappy")
+    add_cxflags(
+        "/utf-8",
+        "/W4",
+        "/w44265",
+        "/w44289",
+        "/w44296",
+        "/w45263",
+        "/w44738",
+        "/w45204"
+    )
+    add_cxflags(
+        "/EHs",
+        "-Wno-microsoft-cast",
+        "-Wno-invalid-offsetof",
+        "-Wno-c++2b-extensions",
+        "-Wno-microsoft-include",
+        "-Wno-overloaded-virtual",
+        "-Wno-ignored-qualifiers",
+        "-Wno-missing-field-initializers",
+        "-Wno-potentially-evaluated-expression",
+        "-Wno-pragma-system-header-outside-header",
+        { tools = { "clang_cl" } }
+    )
+    add_defines(
+        "NOMINMAX",
+        "UNICODE",
+        "_HAS_CXX23=1",
+        "_SILENCE_CXX20_IS_ALWAYS_EQUAL_DEPRECATION_WARNING=1"
+    )
+    set_toolchains("clang-cl")
+    add_packages("levilamina", "ipatch")
     set_kind("shared")
+    set_exceptions("none")
     set_languages("c++23")
     set_symbols("debug")
-    add_headerfiles("src/**.h")
-    add_files("src/**.cpp")
-    add_includedirs("src")
-    after_build(function (target)
-        local outputdir = path.join(os.projectdir(), "bin", target:name())
-        os.mkdir(outputdir)
-        os.cp("LICENSES", outputdir)
-        os.cp("LICENSE", outputdir)
-        os.cp("THIRD_PARTY_NOTICES.md", outputdir)
-    end)
-    if is_config("target_type", "server") then
-    --  add_includedirs("src-server")
-    --  add_files("src-server/**.cpp")
-    else
-    --  add_includedirs("src-client")
-    --  add_files("src-client/**.cpp")
-    end
-target_end()
 
-if has_config("with_tests") then
-    for _, testfile in ipairs(os.files("tests/*Test.cpp")) do
-        target("test_" .. path.basename(testfile))
-            set_kind("binary")
-            set_languages("c++23")
-            set_exceptions("cxx")
-            if is_plat("windows") then
-                set_toolchains("clang-cl")
-                add_cxflags("/utf-8")
-                add_defines("NOMINMAX")
-            end
-            add_includedirs("src")
-            add_files(testfile)
-            add_packages("libdeflate", "snappy")
-            add_tests("default")
-        target_end()
+    add_includedirs("src")
+    add_headerfiles("src/**.h")
+    add_files("src/lo/**.cpp")
+
+    local platform_dir = "src-" .. (get_config("target_type") or "server")
+    if os.isdir(platform_dir) then
+        add_includedirs(platform_dir)
+
+        local platform_headers = os.files(platform_dir .. "/**.h")
+        if #platform_headers > 0 then
+            add_headerfiles(table.unpack(platform_headers))
+        end
+
+        local platform_sources = os.files(platform_dir .. "/lo/**.cpp")
+        if #platform_sources > 0 then
+            add_files(table.unpack(platform_sources))
+        end
     end
-end

@@ -35,14 +35,10 @@ jobs:
           xmake repo -u
 
       - run: |
-          xmake f -a x64 -m release -p windows -v --target_type=${{ matrix.target_type }} --with_tests=${{ matrix.target_type == 'server' && 'y' || 'n' }} -y
+          xmake f -a x64 -m release -p windows -v --target_type=${{ matrix.target_type }} -y
 
       - run: |
           xmake -v -y
-
-      - name: Test production optimization helpers
-        if: matrix.target_type == 'server'
-        run: xmake test -v
 
       - uses: actions/upload-artifact@v7
         with:

@@ -5,6 +5,8 @@
 
 Minecraft基岩版服务器（BDS）的性能优化插件，旨在通过解决每秒传输帧数（TPS）低下的问题来提升服务器性能。该插件在LeviLamina框架内运作，通过修改BDS代码以实现显著的性能改进。
 
+> **迁移状态（2026-10-23）**：模组正在改为服务端/客户端共用代码库。完整的 0.17 服务端实现已归档到 [`old/`](old/README.md)，**不参与构建**；当前 `src/` 只有新架构骨架。目标模型、特性生命周期和迁移步骤见[架构设计](docs/ARCHITECTURE.md)。下面的功能列表描述的是归档实现，不是当前二进制。
+
 ## 目录
 
 - [LeviOptimize](#levioptimize)
@@ -35,13 +37,42 @@ lip install github.com/LiteLDev/LeviOptimize
 
 1. 从[发布页面](https://github.com/LiteLDev/LeviOptimize/releases)下载最新版本。
 2. 解压`LeviOptimize-windows-x64.zip`文件。
-3. 将`LeviOptimize`文件夹复制到BDS安装目录下的`mods`文件夹中。
+3. 专用服务端复制到`plugins/`，客户端复制到`mods/`。
 
 ## 使用
 
-首次运行后，LeviOptimize将在`mod/LeviOptimize/config/`中生成配置文件。您可以修改这些文件以定制插件的行为。
+首次运行后，服务端会在 `plugins/LeviOptimize/config/`、客户端会在 `mods/LeviOptimize/config/` 生成配置文件。每个安装目录拥有自己的 `config.json`，两端文件不能互换。
+
+v22 格式参考 iEconomicSystem：顶层 `$schema` + `version`，`features` 是扁平数组。每个条目用稳定的 `type` 选择特性；缺失字段由默认值补齐，未注册的特性类型会原样保留：
+
+```json
+{
+    "$schema": "config.schema.json",
+    "version": 22,
+    "features": [
+        {
+            "type": "tick_probe",
+            "enable": false,
+            "log_every_ticks": 200,
+            "fail_on_start": false
+        }
+    ]
+}
+```
+
+schema 随构建放在配置文件旁的 `config/config.schema.json`。v21 的旧对象布局
+`"features": { "tickProbe": {...} }` 会在加载时自动迁移。
 
 ## 命令
+
+当前骨架（服务端命令）：
+
+- **`loreload`**（Host 权限）：重新读取 `config.json`，把新值推给正在运行的特性实例并重新协调，不重启进程。命令会逐项输出启动/停止/失败/阻断结果。必须在客户端循环、客户端世界或服务端世界之前安装的特性如果在截止后才首次启用，仍会保持 `RestartRequired`。
+- **`lostatus`**（Host 权限）：先输出运行环境（`side`、`world`、`clientLoop`、`clientWorld`、`serverWorld`），再输出每个特性的 id、启动策略、状态、等待原因和最后一次生命周期错误，便于不查日志定位失败或等待中的项。
+
+`LeviOptimize::reloadConfig()` 返回 `ll::Expected<ReconcileReport>`；`FeatureManager::status(id)` / `statuses()` 把同样的状态暴露给客户端 UI 或测试。
+
+以下命令属于 [`old/`](old/README.md) 中的归档实现：
 
 - **`timing`**：显示服务器性能统计信息，重点关注TPS和详细的ECS性能指标。
 - **`loprofile`**：开启 `features.optFullFrameTiming` 后显示全帧 MSPT/TPS，平均值取最近最多 20 个已采样 tick。通过 `commands.performanceCommand` 控制命令注册。
@@ -51,6 +82,8 @@ lip install github.com/LiteLDev/LeviOptimize
 > Redistributable，或者简单地从一个正常工作的设备复制一个msvcp140.dll文件到您的BDS根目录。
 
 ## 功能
+
+> 以下是 0.17 的归档行为，仅作参考。当前骨架不编译这些特性；迁移状态见[架构设计](docs/ARCHITECTURE.md)。
 
 - **`optMovingBlock`**：通过优化活塞运动过程中的方块实体处理来提高FPS和TPS。
 - **`fixChunkLeak`**：玩家断开连接时调用 BDS 原生方法清理地图 tracker、装饰和脏状态，使其持有的区块视图可以卸载。
